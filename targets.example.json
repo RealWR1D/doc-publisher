@@ -4,14 +4,20 @@
     "example-docs": {
       "type": "http-rest",
       "url": "https://docs.example.com/api/upload/doc",
-      "token": "YOUR_UPLOAD_TOKEN_HERE",
-      "verify_url": "https://docs.example.com/guide",
-      "description": "Example remote documentation site"
+      "token_env": "DOC_PUBLISHER_TOKEN",
+      "auth": "header",
+      "verify": {
+        "url": "https://docs.example.com/guide",
+        "mode": "available",
+        "attempts": 3,
+        "interval": 1
+      },
+      "description": "Replace the example endpoint; available checks accessibility only"
     },
     "local-preview": {
       "type": "local-copy",
       "dest": "./dist/docs.md",
-      "description": "Local test build output"
+      "description": "Atomic file copy; does not start a preview server"
     }
   }
 }

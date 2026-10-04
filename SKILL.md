@@ -1,59 +1,55 @@
 ---
 name: doc-publisher
 description: >-
-  Universal documentation publisher and hot-sync skill. Use this skill when the user
-  asks to publish, push, update, or sync Markdown documentation, user guides, or manuals
-  to a remote documentation server, static doc site, or custom API endpoint.
+  Validate and publish a single Markdown document to a configured HTTP endpoint or
+  local file destination, with optional build polling and content verification.
+  Use when the user asks to publish, push, or sync documentation to such a target;
+  writing or reviewing documentation alone does not imply publication.
 ---
 
-# Document Publisher & Hot-Sync Skill
+# Document Publisher
 
-A lightweight, universal agent skill designed to bridge the gap between code generation and documentation delivery. Enables an AI agent to write/refactor Markdown documentation, validate its structural semantics, and instantly push it to remote documentation sites via standard REST or local endpoints.
+Use the bundled standard-library Python scripts to deliver Markdown. The remote service owns rendering, building and hosting; this skill does not provide a site engine, directory sync or platform-specific SaaS integrations.
 
----
+## Resolve the operation
 
-## Workflow Steps
+Locate this skill directory and use absolute script paths. Keep the user's project as the working directory so project configuration can be discovered; do not change directories to the skill just to run its scripts.
 
-When tasked with writing or updating documentation for a project:
+Select the target the user requested. Existing authorization to publish to that target is sufficient; editing a document alone does not authorize publication. Do not invent an endpoint or silently substitute another environment. For a new or ambiguous destination, prepare the document and dry-run first, then obtain the missing target choice.
 
-### Step 1: Write or Edit Markdown
-Ensure the documentation adheres to semantic hierarchy standards:
-* **H1 (`# Title`)**: Single document root title at the very top.
-* **Sub-title / Metadata (`> text`)**: Immediately follows H1 for version/author notes.
-* **H2 (`## Section`)**: Each H2 represents an independent section card and will be indexed into the table of contents.
-* **H3/H4 (`### Sub-section`)**: Sub-divisions within a section.
-* **Code Blocks**: Always annotate with the language (e.g. ````bash`, ````python`, ````json`).
-* **Callouts / Alerts**: Use standard `> [!TIP]`, `> [!WARNING]`, or `> [!NOTE]`.
-* **Tables**: Use standard GFM tables (`| Header |`).
+Read [configuration.md](references/configuration.md) when configuring authentication, request formats, build status, or verification. Private credentials belong in environment variables (`token_env`) or private config, never in generated examples or committed files. Use `--token` only when necessary because arguments can appear in shell history/process listings.
 
-### Step 2: Validate Document Structure
-Run the built-in linter to verify formatting and detect syntax issues:
+## Prepare and publish
+
+Follow the user's document structure and the target's rendering requirements. The default checker expects one leading H1 (optional YAML frontmatter), no downward heading skips, closed backtick/tilde fences, and consistent basic table columns. Missing fence languages/H2 are warnings; `--strict` makes warnings fatal. If this checker is unsuitable for an intentional document format, use the appropriate validator and explicitly opt out with `--skip-lint`; do not rewrite the user's content merely to satisfy this checker.
+
+Run a dry-run using the actual skill path:
+
 ```bash
-python3 scripts/lint.py <path/to/doc.md>
+python3 <absolute-skill-dir>/scripts/publish.py <document.md> --target <name> --dry-run --json
 ```
 
-### Step 3: Publish to Target Endpoint
-Publish using the unified CLI client:
-```bash
-# Push using a named target profile from targets.json
-python3 scripts/publish.py --target <target_name> <path/to/doc.md> --verify
+Review the resolved endpoint/destination, file hash, byte count, overwrite action and verification mode. Dry-run checks file/config validity, not remote permissions. Fix validation failures before publishing. For an already authorized target, continue without requesting redundant confirmation.
 
-# Or push directly via CLI flags without a config file
-python3 scripts/publish.py --url "<API_ENDPOINT>" --token "<TOKEN>" <path/to/doc.md> --verify
+```bash
+python3 <absolute-skill-dir>/scripts/publish.py <document.md> --target <name> --json
 ```
 
-### Step 4: Verification and Reporting
-1. Confirm the CLI output reports `HTTP 200` with parsed response metadata (e.g. section count, build latency).
-2. Report the live preview URL to the user.
+The publisher runs lint by default. Add `--verify` only with a configured verification URL (local-copy compares destination hash directly). Prefer SHA-256 or a unique version/content marker when the user needs proof of the update; `available` proves accessibility only. Configured build polling runs after an accepted upload, using the configured job ID mapping when supplied.
 
----
+`--url` changes do not carry original target credentials, private headers, build URLs or preview URLs to another endpoint. Supply intentional new credentials/verification settings if overriding an address. Invalid configs, unknown targets and unknown target types stop the operation. Relative local destinations are resolved from the config file directory.
 
-## Configuration & Target Profiles
+## Interpret results
 
-Target profiles are loaded in the following order:
-1. Local workspace config: `./.doc-publisher.json` or `./targets.json` (ignored by git).
-2. Skill root config: `targets.json` (ignored by git).
-3. User global config: `~/.config/doc-publisher/targets.json`.
-4. Environment variables: `DOC_PUBLISHER_URL`, `DOC_PUBLISHER_TOKEN`.
+Read both the exit code and JSON fields:
 
-Refer to [targets.example.json](./targets.example.json) for profile structure.
+- `uploaded` / `accepted`: the endpoint accepted the upload; do not claim a completed build.
+- `build-completed`: the configured status API reports completion; confirm it describes this upload.
+- `copied`: local atomic copy completed.
+- `reachable`: the preview URL is accessible; it may still show old content.
+- `content-match` / `json-match`: the configured content/version condition matched.
+- `sha256-match`: bytes or a server-provided hash matched this file.
+
+Failures identify `stage`: validation (exit 1), upload/copy (2), build (3), verification (4). If upload succeeded and a later step failed, report that distinction. Do not blindly rerun a mutating upload: it may already have taken effect. Status and verification GETs have bounded polling; uploads have no automatic retries. Redirects are refused; use the final URL rather than forwarding credentials.
+
+Report the actual target, completion evidence and configured preview URL when available. Never infer a live preview URL from the upload endpoint, or claim rendering quality from HTTP status alone. Do not include credentials or raw service responses in the report.
