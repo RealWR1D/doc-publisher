@@ -341,7 +341,7 @@ class HTTPIntegrationTests(unittest.TestCase):
     def test_real_http_upload_and_hash_verification(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'doc.md'
-            source.write_text(DOC)
+            source.write_bytes(DOC.encode("utf-8"))
             config = Path(directory) / 'targets.json'
             config.write_text(json.dumps({'default': 'test', 'targets': {'test': {'url': self.url + '/upload', 'token': 'LOCAL-TEST-TOKEN', 'verify': {'url': self.url + '/raw', 'mode': 'sha256', 'attempts': 1}}}}))
             with contextlib.redirect_stdout(io.StringIO()) as output, patch.dict(os.environ, {}, clear=True):
