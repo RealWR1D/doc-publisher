@@ -1,0 +1,17 @@
+{
+  "default": "example-docs",
+  "targets": {
+    "example-docs": {
+      "type": "http-rest",
+      "url": "https://docs.example.com/api/upload/doc",
+      "token": "YOUR_UPLOAD_TOKEN_HERE",
+      "verify_url": "https://docs.example.com/guide",
+      "description": "Example remote documentation site"
+    },
+    "local-preview": {
+      "type": "local-copy",
+      "dest": "./dist/docs.md",
+      "description": "Local test build output"
+    }
+  }
+}

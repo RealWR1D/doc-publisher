@@ -1,0 +1,16 @@
+# Private targets & credentials
+targets.json
+targets.local.json
+.doc-publisher.json
+*.token
+.env
+.env.*
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# OS artifacts
+.DS_Store
+Thumbs.db
